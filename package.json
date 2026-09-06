@@ -5,6 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "server": "node server/server.js",
+    "ml": "python ml/predict.py --serve --port 8000",
+    "train": "python ml/train.py",
+    "test": "node tests/engine.test.js && node --test tests/auth.test.js tests/ml.test.js",
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview"
