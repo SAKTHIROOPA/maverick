@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/layout/Navbar';
 import { Sidebar } from './components/layout/Sidebar';
+import { LoginPage } from './pages/LoginPage';
 import { Dashboard } from './pages/Dashboard';
 import { EmailAnalysisPage } from './pages/EmailAnalysisPage';
 import { AnalysisResultsPage } from './pages/AnalysisResultsPage';
@@ -10,13 +11,35 @@ import { ThreatGraphPage } from './pages/ThreatGraphPage';
 import { InvestigationCasePage } from './pages/InvestigationCasePage';
 import { ForensicReportPage } from './pages/ForensicReportPage';
 import { QuickScanModal } from './components/dashboard/QuickScanModal';
+import { getActiveSession, terminateSession } from './services/authService';
 import './App.css';
 
 function App() {
+  const [authSession, setAuthSession] = useState(() => getActiveSession());
   const [currentView, setCurrentView] = useState('dashboard');
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
   const [inspectedEmail, setInspectedEmail] = useState(null);
   const [selectedCase, setSelectedCase] = useState(null);
+
+  // Sync auth state on mount
+  useEffect(() => {
+    const session = getActiveSession();
+    setAuthSession(session);
+  }, []);
+
+  const handleLoginSuccess = (user) => {
+    const session = getActiveSession();
+    setAuthSession(session || { isAuthenticated: true, user });
+    setCurrentView('dashboard');
+  };
+
+  const handleLogout = () => {
+    terminateSession();
+    setAuthSession(null);
+    setCurrentView('dashboard');
+    setInspectedEmail(null);
+    setSelectedCase(null);
+  };
 
   const handleStartAnalysis = (presetId) => {
     setIsScanModalOpen(false);
@@ -101,6 +124,11 @@ function App() {
     }
   };
 
+  // Protected Route Check: If not authenticated, always show LoginPage
+  if (!authSession || !authSession.isAuthenticated) {
+    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+  }
+
   return (
     <div className="min-h-screen bg-[#070b13] text-slate-100 flex flex-col selection:bg-cyan-500/30 selection:text-cyan-200">
       
@@ -109,6 +137,8 @@ function App() {
         currentView={currentView}
         onViewChange={setCurrentView}
         onOpenScan={() => setIsScanModalOpen(true)}
+        onLogout={handleLogout}
+        currentUser={authSession?.user}
       />
 
       {/* Main Workspace Layout */}
@@ -118,6 +148,7 @@ function App() {
         <Sidebar
           currentView={currentView}
           onViewChange={setCurrentView}
+          onLogout={handleLogout}
         />
 
         {/* Dynamic Page Content Viewport */}

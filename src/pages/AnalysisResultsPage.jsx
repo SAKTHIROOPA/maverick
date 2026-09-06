@@ -2,24 +2,96 @@ import React from 'react';
 import { 
   ShieldAlert, 
   AlertTriangle, 
-  CheckCircle2, 
   Brain, 
   ArrowRight, 
   ArrowLeft,
   Binary,
-  GitFork,
   Globe,
   Mail,
   Paperclip,
   ShieldX,
-  FileWarning,
   Activity,
   Info,
-  Server
+  Server,
+  Sparkles,
+  CheckCircle
 } from 'lucide-react';
 
 export const AnalysisResultsPage = ({ onViewChange, email }) => {
-  const factors = [
+  // Use dynamic email prediction telemetry when available, or fallback to default threat scenario
+  const isDynamic = Boolean(email && email.prediction);
+  const prediction = email?.prediction || null;
+
+  const threatLabel = prediction?.label || 'MALICIOUS / PHISHING';
+  const outcomeType = prediction?.type || 'PREDICTED_MATCH';
+  const confidenceScore = prediction ? Math.round(prediction.confidence * 100) : 92;
+  const targetRecipient = email?.recipient || 'treasury-controller@gov-organization.in';
+  const senderDisplay = email?.sender || 'Satya N. <cfo-finance-update@internal-corp-portal.online>';
+  
+  // Calculate computed risk score
+  const riskScore = outcomeType === 'EXACT_MATCH'
+    ? 98
+    : outcomeType === 'PREDICTED_MATCH'
+      ? Math.min(99, Math.max(20, Math.round(confidenceScore * 0.95)))
+      : 35;
+
+  const dynamicFactors = isDynamic ? [
+    {
+      id: 'auth-failures',
+      name: 'Authentication Verification (SPF / DKIM / DMARC)',
+      contribution: prediction.featureWeights?.authSignals ? Math.min(25, Math.round(prediction.featureWeights.authSignals * 0.3)) : (email?.spfResult?.toLowerCase().includes('pass') ? 2 : 22),
+      maxPoints: 25,
+      severity: email?.spfResult?.toLowerCase().includes('pass') ? 'LOW' : 'CRITICAL',
+      icon: ShieldX,
+      color: email?.spfResult?.toLowerCase().includes('pass') ? 'cyan' : 'red',
+      evidence: `SPF: ${email?.spfResult || 'SOFTFAIL'} | DKIM: ${email?.dkimResult || 'FAIL'} | DMARC: ${email?.dmarcResult || 'FAIL'}.`,
+      metricLabel: `${email?.spfResult?.toLowerCase().includes('pass') ? '+2.0 pts' : '+22.0 pts'}`
+    },
+    {
+      id: 'suspicious-domain',
+      name: 'Sender Domain Attribution & TLD Risk',
+      contribution: prediction.featureWeights?.domainRisk ? Math.min(20, Math.round(prediction.featureWeights.domainRisk * 0.22)) : 18,
+      maxPoints: 20,
+      severity: 'HIGH',
+      icon: Mail,
+      color: 'red',
+      evidence: `Sender address "${senderDisplay}". Behavioral heuristic analysis flagged reputation anomaly.`,
+      metricLabel: `+${prediction.featureWeights?.domainRisk ? Math.min(20, Math.round(prediction.featureWeights.domainRisk * 0.22)) : 18}.0 pts`
+    },
+    {
+      id: 'keyword-alignment',
+      name: 'SOC Lexicon & Content Intent Alignment',
+      contribution: prediction.featureWeights?.keywordOverlap ? Math.min(25, Math.round(prediction.featureWeights.keywordOverlap * 0.25)) : 20,
+      maxPoints: 25,
+      severity: 'HIGH',
+      icon: Globe,
+      color: 'amber',
+      evidence: `NLP threat vector alignment scored positive matches against known attack vocabularies.`,
+      metricLabel: `+${prediction.featureWeights?.keywordOverlap ? Math.min(25, Math.round(prediction.featureWeights.keywordOverlap * 0.25)) : 20}.0 pts`
+    },
+    {
+      id: 'suspicious-attachment',
+      name: 'Attachment Threat Vector',
+      contribution: (email?.attachments && email.attachments.length > 0) ? 18 : 0,
+      maxPoints: 20,
+      severity: (email?.attachments && email.attachments.some(a => a.isSuspicious)) ? 'CRITICAL' : 'LOW',
+      icon: Paperclip,
+      color: (email?.attachments && email.attachments.some(a => a.isSuspicious)) ? 'red' : 'cyan',
+      evidence: (email?.attachments && email.attachments.length > 0) ? `Detected attachment "${email.attachments[0].filename}" (${email.attachments[0].flag})` : 'No suspicious attachments detected.',
+      metricLabel: `${(email?.attachments && email.attachments.length > 0) ? '+18.0 pts' : '0.0 pts'}`
+    },
+    {
+      id: 'database-correlation',
+      name: 'SOC Threat Knowledge Base Correlation',
+      contribution: outcomeType === 'EXACT_MATCH' ? 10 : 8,
+      maxPoints: 10,
+      severity: 'MEDIUM',
+      icon: Server,
+      color: 'cyan',
+      evidence: prediction.explanation || 'Correlated against known historical SOC incident database records.',
+      metricLabel: `+${outcomeType === 'EXACT_MATCH' ? '10.0' : '8.0'} pts`
+    }
+  ] : [
     {
       id: 'auth-failures',
       name: 'Authentication Failure (SPF / DKIM / DMARC)',
@@ -105,13 +177,34 @@ export const AnalysisResultsPage = ({ onViewChange, email }) => {
                 <ShieldAlert className="w-6 h-6 text-red-400" />
                 <span>Threat Classification:</span>
               </h1>
-              <span className="px-3 py-1 rounded-lg bg-red-950/90 border border-red-500 text-red-300 font-mono font-extrabold text-xs shadow-[0_0_12px_rgba(239,68,68,0.4)]">
-                MALICIOUS / PHISHING
+              <span className={`px-3 py-1 rounded-lg font-mono font-extrabold text-xs shadow-md ${
+                threatLabel.includes('Benign') || threatLabel.includes('Legitimate')
+                  ? 'bg-emerald-950/90 border border-emerald-500 text-emerald-300'
+                  : 'bg-red-950/90 border border-red-500 text-red-300 shadow-[0_0_12px_rgba(239,68,68,0.4)]'
+              }`}>
+                {threatLabel}
               </span>
+
+              {/* Status Outcome Badge */}
+              {outcomeType === 'EXACT_MATCH' && (
+                <span className="px-2.5 py-0.5 rounded bg-emerald-950/90 border border-emerald-400 text-emerald-300 font-mono text-[11px] font-bold flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" /> EXACT_MATCH (DB Verified)
+                </span>
+              )}
+              {outcomeType === 'PREDICTED_MATCH' && (
+                <span className="px-2.5 py-0.5 rounded bg-purple-950/90 border border-purple-400 text-purple-300 font-mono text-[11px] font-bold flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" /> PREDICTED_MATCH
+                </span>
+              )}
+              {outcomeType === 'NO_CONFIDENT_MATCH' && (
+                <span className="px-2.5 py-0.5 rounded bg-amber-950/90 border border-amber-400 text-amber-300 font-mono text-[11px] font-bold flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" /> NO_CONFIDENT_MATCH
+                </span>
+              )}
             </div>
 
             <p className="text-xs text-slate-300 mt-1.5 font-mono">
-              Target: <span className="text-cyan-300 font-semibold">treasury-controller@gov-organization.in</span> | Case Reference: <span className="text-amber-400 font-bold">SIH-DEMO-2026-0881</span>
+              Target: <span className="text-cyan-300 font-semibold">{targetRecipient}</span> | Sender: <span className="text-amber-400 font-bold">{senderDisplay}</span>
             </p>
           </div>
 
@@ -141,13 +234,13 @@ export const AnalysisResultsPage = ({ onViewChange, email }) => {
         </div>
       </div>
 
-      {/* Required Concise Methodology Explanation Banner */}
+      {/* Methodology Banner */}
       <div className="rounded-xl bg-[#09101e] border border-cyan-500/30 p-4 font-mono text-xs text-slate-300 flex items-start gap-3 shadow-md">
         <Info className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
         <div>
           <span className="text-cyan-300 font-bold block mb-0.5">MAVERICK Scoring Methodology:</span>
           <p className="text-slate-300 text-xs leading-relaxed font-sans">
-            The risk score is calculated by combining email content analysis, header forensics, IOC intelligence, infrastructure context, and graph correlation.
+            The forensic score is calculated by combining RFC 822 email content analysis, header forensics, domain reputation, database exact/predictive matching, and heuristic indicators.
           </p>
         </div>
       </div>
@@ -162,12 +255,12 @@ export const AnalysisResultsPage = ({ onViewChange, email }) => {
               AI Risk Evaluation
             </span>
 
-            {/* Circular Risk Score Display: 92/100 */}
+            {/* Circular Risk Score Display */}
             <div className="my-6 flex justify-center">
               <div className="relative inline-flex items-center justify-center w-40 h-40 rounded-full border-4 border-red-500/80 bg-gradient-to-b from-red-950/50 to-[#0a1120] text-red-400 shadow-[0_0_25px_rgba(239,68,68,0.3)]">
                 <div className="text-center">
                   <div className="text-5xl font-black text-white tracking-tight">
-                    92
+                    {riskScore}
                   </div>
                   <div className="text-xs font-bold text-red-400 tracking-wider mt-0.5">
                     / 100
@@ -185,14 +278,14 @@ export const AnalysisResultsPage = ({ onViewChange, email }) => {
                 <span className="text-[10px] uppercase text-slate-400 block font-semibold">Risk Level</span>
                 <span className="text-lg font-black text-red-400 flex items-center justify-center gap-1.5 mt-0.5">
                   <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse"></span>
-                  HIGH
+                  {riskScore >= 70 ? 'HIGH' : riskScore >= 40 ? 'MEDIUM' : 'LOW'}
                 </span>
               </div>
 
               <div className="p-3 rounded-lg bg-[#060a14] border border-cyan-500/40">
                 <span className="text-[10px] uppercase text-slate-400 block font-semibold">AI Confidence</span>
                 <span className="text-lg font-black text-cyan-300 block mt-0.5">
-                  92%
+                  {confidenceScore}%
                 </span>
               </div>
             </div>
@@ -201,15 +294,15 @@ export const AnalysisResultsPage = ({ onViewChange, email }) => {
             <div className="mt-5 space-y-2 text-xs text-slate-300">
               <div className="p-2.5 rounded bg-[#060a14] border border-slate-800/80 flex items-center justify-between text-[11px]">
                 <span className="text-slate-400">Threat Verdict:</span>
-                <span className="text-red-400 font-bold">MALICIOUS / PHISHING</span>
+                <span className="text-red-400 font-bold">{threatLabel}</span>
+              </div>
+              <div className="p-2.5 rounded bg-[#060a14] border border-slate-800/80 flex items-center justify-between text-[11px]">
+                <span className="text-slate-400">Outcome Model:</span>
+                <span className="text-purple-300 font-bold">{outcomeType}</span>
               </div>
               <div className="p-2.5 rounded bg-[#060a14] border border-slate-800/80 flex items-center justify-between text-[11px]">
                 <span className="text-slate-400">Total Factors Evaluated:</span>
-                <span className="text-white font-bold">6 Evidence Signals</span>
-              </div>
-              <div className="p-2.5 rounded bg-[#060a14] border border-slate-800/80 flex items-center justify-between text-[11px]">
-                <span className="text-slate-400">Summed Factor Contribution:</span>
-                <span className="text-cyan-300 font-bold">92 / 100 Points</span>
+                <span className="text-white font-bold">{dynamicFactors.length} Evidence Signals</span>
               </div>
             </div>
           </div>
@@ -250,13 +343,13 @@ export const AnalysisResultsPage = ({ onViewChange, email }) => {
               </h2>
             </div>
             <span className="text-[11px] font-mono text-cyan-300 bg-cyan-950/80 px-2.5 py-0.5 rounded border border-cyan-500/40">
-              Factor Contribution Breakdown (Sum: 92/100)
+              Factor Contribution Breakdown
             </span>
           </div>
 
           {/* Factor Contribution Cards */}
           <div className="space-y-3.5 font-mono">
-            {factors.map((factor) => {
+            {dynamicFactors.map((factor) => {
               const IconComponent = factor.icon;
               const percentage = Math.round((factor.contribution / factor.maxPoints) * 100);
 
@@ -324,7 +417,7 @@ export const AnalysisResultsPage = ({ onViewChange, email }) => {
           {/* Bottom Callout & Proceed Action */}
           <div className="pt-3 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 font-mono text-xs">
             <span className="text-slate-400 text-center sm:text-left">
-              All 6 evidence factors correlate with extracted indicators in the threat repository.
+              All evidence factors correlate with extracted indicators in the threat repository.
             </span>
 
             <button

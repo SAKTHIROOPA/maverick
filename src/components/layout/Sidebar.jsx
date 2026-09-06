@@ -12,7 +12,8 @@ import {
   ShieldCheck,
   Server,
   Zap,
-  Flame
+  Flame,
+  LogOut
 } from 'lucide-react';
 
 const navItems = [
@@ -26,7 +27,7 @@ const navItems = [
   { id: 'forensic-report', label: 'Forensic Report', icon: FileText, step: '08', badge: 'SIH CERT', badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' },
 ];
 
-export const Sidebar = ({ currentView, onViewChange }) => {
+export const Sidebar = ({ currentView, onViewChange, onLogout }) => {
   return (
     <aside className="w-64 shrink-0 flex flex-col justify-between border-r border-cyan-950/50 bg-[#060a12] min-h-[calc(100vh-4rem)]">
       
@@ -134,8 +135,25 @@ export const Sidebar = ({ currentView, onViewChange }) => {
           </div>
         </div>
 
+        {/* Logout Option */}
+        {onLogout && (
+          <button
+            type="button"
+            onClick={onLogout}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-red-950/20 hover:bg-red-900/40 border border-red-500/30 hover:border-red-500/50 text-red-300 text-xs font-mono transition-all cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <LogOut className="w-3.5 h-3.5 text-red-400" />
+              <span>Terminate Session</span>
+            </div>
+            <span className="text-[9px] px-1 py-0.5 rounded bg-red-950/60 text-red-400 border border-red-900/60 font-mono">
+              LOGOUT
+            </span>
+          </button>
+        )}
+
         {/* Version info */}
-        <div className="pt-2 border-t border-slate-900 flex items-center justify-between text-[9px] font-mono text-slate-600">
+        <div className="pt-1 border-t border-slate-900 flex items-center justify-between text-[9px] font-mono text-slate-600">
           <span>MAVERICK SOC v4.2.0</span>
           <span>SIH-2026 Core</span>
         </div>

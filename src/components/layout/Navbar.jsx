@@ -12,11 +12,12 @@ import {
   VolumeX, 
   RefreshCw,
   Cpu,
-  Layers
+  Layers,
+  LogOut
 } from 'lucide-react';
 import { SOC_SUMMARY } from '../../data/mockSocData';
 
-export const Navbar = ({ onOpenScan, currentView, onViewChange }) => {
+export const Navbar = ({ onOpenScan, currentView, onViewChange, onLogout, currentUser }) => {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [timeRange, setTimeRange] = useState('24h');
@@ -141,18 +142,36 @@ export const Navbar = ({ onOpenScan, currentView, onViewChange }) => {
             <span className="sm:hidden">Scan</span>
           </button>
 
-          {/* SOC Analyst Badge */}
-          <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
+          {/* SOC Analyst Badge & Logout */}
+          <div className="flex items-center gap-2.5 pl-2 border-l border-slate-800">
             <div className="relative">
               <div className="w-8 h-8 rounded-full bg-slate-800 border border-cyan-500/40 flex items-center justify-center text-xs font-bold font-mono text-cyan-300">
-                MK
+                {currentUser?.initials || 'MK'}
               </div>
               <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-400 border border-[#070b13]"></span>
             </div>
-            <div className="hidden 2xl:block text-left">
-              <div className="text-xs font-medium text-slate-200">Analyst SIH-01</div>
-              <div className="text-[10px] text-cyan-400/80 font-mono">SOC Lead Tier-3</div>
+            
+            <div className="hidden lg:block text-left">
+              <div className="text-xs font-medium text-slate-200">
+                {currentUser?.name || 'Analyst SIH-01'}
+              </div>
+              <div className="text-[10px] text-cyan-400/80 font-mono">
+                {currentUser?.role || 'SOC Lead Tier-3'}
+              </div>
             </div>
+
+            {/* Logout CTA Button */}
+            {onLogout && (
+              <button
+                type="button"
+                onClick={onLogout}
+                title="Sign out of SOC session"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-950/40 hover:bg-red-900/60 border border-red-500/40 hover:border-red-400 text-red-300 hover:text-red-200 text-xs font-mono transition-all cursor-pointer active:scale-95 ml-1"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Logout</span>
+              </button>
+            )}
           </div>
 
         </div>
